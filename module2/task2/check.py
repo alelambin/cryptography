@@ -1,23 +1,29 @@
 import json
 import subprocess
 import re
+import random
 
+
+ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 TESTDATA = [
     ('Test', 3),
-    ('Test', -3)
+    ('Test', 0),
+    ('', 1),
+    ('Test', 26),
+    ('Test', 100),
+    ('Test', -3),
+    ('Test', -100),
+    (''.join(random.choices(ALPHABET, k=1000)), random.randint(1, 25)),
+    (''.join(random.choices(ALPHABET, k=1000)), random.randint(-25, 1)),
 ]
 
 PREFIX = []
-POSTFIX = [
-    f"print(encode('{TESTDATA[0][0]}', {TESTDATA[0][1]}))",
-    f"print(encode('{TESTDATA[1][0]}', {TESTDATA[1][1]}))",
-]
+POSTFIX = [f"print(encode('{DATA[0]}', {DATA[1]}))" for DATA in TESTDATA]
 filename = R'~\.result.txt'
 
 
 def get_answer(data):
-    ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     answer = ''
     for letter in data[0]:
         answer += ALPHABET[(ord(letter) - 65 + data[1]) % len(ALPHABET)]
