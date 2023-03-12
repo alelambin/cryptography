@@ -32,21 +32,56 @@ $$P = C^d \mod n.$$
 
 Зная значения переменных $e$, $n$ и $C$ вычислительно трудно вычислить $P$, поскольку для этого необходимо знать значение переменной $d$, для вычисления которой необходимо знание чисел $p$ и $q$. Задача разложения числа $n$ на простые сомножители $p$ и $q$ называется **задачей факторизации** и является вычислительно трудной.
 
-В модуле `PyСryptodome` имеются все необходимые функции для шифрования и расшифровки сообщений с помощью RSA. В качестве примера рассмотрим следующий код:
+В модуле `PyСryptodome` имеются все необходимые функции для шифрования и расшифровки сообщений с помощью RSA. Рассмотрим генерацию ключей, шифрование с помощью открытого ключа и расшифровку с помощью закрытого.
+
+Генерация ключей:
+
+```python
+from Crypto.PublicKey import RSA
+
+
+key = RSA.generate(1024)
+with open('./private_key.pem', 'wb') as file:
+    file.write(key.export_key())
+with open('./public_key.pem', 'wb') as file:
+    file.write(key.public_key().export_key())
+
+```
+
+Генерация ключей происходит с помощью метода `RSA.generate()`, входным параметром которого является длина ключа в битах. Для сохранения ключей в файл необходимо открыть файлы на запись в двоичном режиме. В примере ключи сохраняются в формате PEM. Для записи закрытого ключа используется метод `key.export_key()`, а для открытого – `key.public_key().export_key()`.
+
+Шифрование данных:
 
 ```python
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
 
-key = RSA.generate(1024)
+with open('./public_key.pem', 'rb') as file:
+    key = RSA.import_key(file.read())
 cipher = PKCS1_OAEP.new(key)
 plaintext = b'Python'
 ciphertext = cipher.encrypt(plaintext)
-print(ciphertext)
+with open('./data.bin', 'wb') as file:
+    file.write(ciphertext)
+
+```
+
+Для получения ключа из файла используется метод `RSA.import_key()`. Этот метод возвращает открытый ключ, который затем передаётся в метод `PKCS1_OAEP.new()` для получения объекта `cipher`. PKCS1_OAEP является шифром на основе RSA и [OAEP](https://ru.wikipedia.org/wiki/Оптимальное_асимметричное_шифрование_с_дополнением).
+
+Расшифровка данных:
+
+```python
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.PublicKey import RSA
+
+
+with open('./private_key.pem', 'rb') as file:
+    key = RSA.import_key(file.read())
+cipher = PKCS1_OAEP.new(key)
+with open('./data.bin', 'rb') as file:
+    ciphertext = file.read()
 plaintext = cipher.decrypt(ciphertext)
 print(plaintext.decode('utf-8'))
 
 ```
-
-Генерация ключей происходит с помощью метода `RSA.generate()`, входным параметром которого является длина ключа в битах. Шифрование происходит с помощью `PKCS1_OAEP`, основанного на RSA. Остальные команды такие же, как при симметричном шифровании.
