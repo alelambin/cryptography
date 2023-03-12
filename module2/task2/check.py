@@ -7,13 +7,13 @@ import random
 ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 TESTDATA = [
-    ('Test', 3),
-    ('Test', 0),
+    ('TEST', 3),
+    ('TEST', 0),
     ('', 1),
-    ('Test', 26),
-    ('Test', 100),
-    ('Test', -3),
-    ('Test', -100),
+    ('TEST', 26),
+    ('TEST', 100),
+    ('TEST', -3),
+    ('TEST', -100),
     (''.join(random.choices(ALPHABET, k=1000)), random.randint(1, 25)),
     (''.join(random.choices(ALPHABET, k=1000)), random.randint(-25, 1)),
 ]
