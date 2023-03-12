@@ -45,15 +45,13 @@ def tweak_line_numbers(error):
     for line in error.splitlines():
         match = re.match("(.*, line )([0-9]+)", line)
         if match:
-            line = match.group(1) + str(int(match.group(2)) - len(PREFIX))
+            line = match.group(1) + str(int(match.group(2)) - len(PREFIX) - 1)
         new_error += line + '\n'
     return new_error
 
 
 student_code = '\n'.join(PREFIX) + '\n'
-student_code += """
-{{ STUDENT_ANSWER | e('py') }}
-"""
+student_code += """{{ STUDENT_ANSWER | e('py') }}"""
 student_code += '\n'.join(POSTFIX) + '\n'
 
 output = ''
