@@ -19,7 +19,7 @@ TESTDATA = [
 ]
 
 PREFIX = []
-POSTFIX = [f"print(encode('{DATA[0]}', {DATA[1]}))" for DATA in TESTDATA]
+POSTFIX = [f"print(encrypt('{DATA[0]}', {DATA[1]}))" for DATA in TESTDATA]
 filename = R'~\.result.txt'
 
 
