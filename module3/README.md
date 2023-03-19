@@ -32,7 +32,7 @@
 
 ```python
 from Crypto.Cipher import DES
-from Crypto.Uti.Padding import pad, unpad
+from Crypto.Util.Padding import pad, unpad
 
 
 BLOCK_SIZE = 8
