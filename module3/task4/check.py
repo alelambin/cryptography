@@ -27,34 +27,37 @@ encrypt_filename = R'~\.encrypt_result'
 decrypt_filename = R'~\.decrypt_result'
 encrypt_function_name = 'encrypt'
 decrypt_function_name = 'decrypt'
-byteorder = 'big'
-delimiter = b'\x00'
 
 PREFIX = """
 from math import log2 as __log2__
 """
 POSTFIX = f"""
-with open('{encrypt_filename}', 'wb') as encrypt_file, open('{decrypt_filename}', 'w') as decrypt_file:
+def write_bytes(file, barray):
+    for byte in barray:
+        file.write(('' if byte > 15 else '0') + hex(byte)[2:])
+    file.write('\\n')
+
+
+with open('{encrypt_filename}', 'w') as encrypt_file, open('{decrypt_filename}', 'w') as decrypt_file:
     """ + '\n'.join(list(map(lambda DATA: f"""
     ciphertext = {encrypt_function_name}('{DATA[0]}', {DATA[1]}, {DATA[2]})
     plaintext = {decrypt_function_name}(ciphertext, {DATA[1]}, {DATA[2]})
-    length = len(ciphertext)
-    length_byte_size = 1 + int(__log2__(length)) // 8 if length > 0 else 1
-    encrypt_file.write(length.to_bytes(length_byte_size, '{byteorder}') + {delimiter} + ciphertext)
+    write_bytes(encrypt_file, ciphertext)
     decrypt_file.write(plaintext + '\\n')
 """, TESTDATA)))
 
 
-def get_encrypt_student_answers(byte_string):
-    array = []
-    index = 0
-    while index < len(byte_string):
-        delimiter_index = byte_string.find(delimiter, index + 1)
-        length = int.from_bytes(byte_string[index:delimiter_index], 'big')
-        answer_index = delimiter_index + 1
-        index = answer_index + length
-        array.append(byte_string[answer_index:index])
-    return array
+def get_encrypt_student_answers(file_string):
+    answers = file_string.split('\n')[:-1]
+    result = []
+    for answer in answers:
+        byte_array = b''
+        index = 0
+        while index < len(answer):
+            byte_array += int(answer[index:(index + 2)], 16).to_bytes(1, 'big')
+            index += 2
+        result.append(byte_array)
+    return result
 
 
 def get_decrypt_student_answers(char_string):
@@ -117,7 +120,7 @@ if output:
     html += f"<pre>{output}</pre>"
 
 if not failed:
-    with open(encrypt_filename, 'rb') as encrypt_file, open(decrypt_filename, 'r') as decrypt_file:
+    with open(encrypt_filename, 'r') as encrypt_file, open(decrypt_filename, 'r') as decrypt_file:
         failed = not check_answers(get_encrypt_student_answers(encrypt_file.read()), get_decrypt_student_answers(decrypt_file.read()))
         if failed:
             html += f"<p>Wrong answer</p>"
