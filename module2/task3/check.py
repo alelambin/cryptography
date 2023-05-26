@@ -27,6 +27,11 @@ DATA = [
     (''.join(random.choices(ALPHABET, k=1000)), random.randint(-25, 1)),
 ]
 TESTDATA = list(map(get_testdata, DATA))
+ANSWERS = {
+    0: {'user_answer': None, 'correct_answer': 'TESTALICE'},
+    1: {'user_answer': None, 'correct_answer': 'TESTALICE'},
+    2: {'user_answer': None, 'correct_answer': 'ALICE'}
+}
 
 PREFIX = []
 POSTFIX = [f"print(hack('{DATA[0]}'))" for DATA in TESTDATA]
@@ -37,9 +42,13 @@ def check_answers(answers):
     if len(TESTDATA) != len(answers):
         return False
     
-    result = True
+    result = 0
     for i in range(len(TESTDATA)):
-        result = result and (DATA[i][0] + 'ALICE' == answers[i])
+        correct_answer = DATA[i][0] + 'ALICE'
+        user_answer = answers[i]
+        if i in ANSWERS:
+            ANSWERS[i]['user_answer'] = user_answer
+        result += 1 if correct_answer == user_answer else 0
     return result
 
 
@@ -54,7 +63,9 @@ def tweak_line_numbers(error):
 
 
 student_code = '\n'.join(PREFIX) + '\n'
-student_code += """{{ STUDENT_ANSWER | e('py') }}"""
+student_code += """
+{{ STUDENT_ANSWER | e('py') }}
+"""
 student_code += '\n'.join(POSTFIX) + '\n'
 
 output = ''
@@ -83,12 +94,40 @@ if outcome.stderr:
 html = ''
 if output:
     html += f"<pre>{output}</pre>"
-    
+
+right_answers = 0
 if not failed:
     with open(filename, 'r') as file:
-        failed = not check_answers(file.read().split('\n')[:-1])
-        if failed:
-            html += f"<pre>Wrong answer</pre>"
+        right_answers = check_answers(file.read().split('\n')[:-1])
+        failed = right_answers < len(TESTDATA)
+
+html += f"""<div>
+<table border>
+    <thead>
+        <tr>
+            <th scope="col">
+                <div>
+                    <div>Входные данные</div>
+                </div>
+            </th>
+            <th scope="col">Правильное решение</th>
+            <th scope="col">Ваше решение</th>
+        </tr>
+    </thead>
+    <tbody>
+""" + '\n'.join([f"""
+    <tr>
+        <td><code style='color:black;'>hack('{TESTDATA[i][0]}')</code></td>
+        <td><code style='color:black;'>'{ANSWERS[i]['correct_answer']}'</code></td>
+        <td><code style='color:black;'>'{ANSWERS[i]['user_answer']}'</code></td>
+    </tr>
+""" for i in ANSWERS]) + """
+    </tbody>
+</table>
+</div>
+<br>
+"""
+html += f"<p>Пройдено тестов: {right_answers}<br>Всего тестов: {len(TESTDATA)}</p>"
 
 print(json.dumps({
     'epiloguehtml': html,
