@@ -38,8 +38,10 @@ with open('{encrypt_filename}', 'w') as encrypt_file, open('{decrypt_filename}',
     """ + '\n'.join(list(map(lambda DATA: f"""
     ciphertext = {encrypt_function_name}({DATA[0]}, '{DATA[1]}')
     plaintext = {decrypt_function_name}(ciphertext, '{DATA[2]}')
-    write_bytes(encrypt_file, ciphertext)
-    write_bytes(decrypt_file, plaintext)
+    if type(ciphertext) == bytes:
+        write_bytes(encrypt_file, ciphertext)
+    if type(plaintext) == bytes:
+        write_bytes(decrypt_file, plaintext)
 """, TESTDATA)))
 
 
@@ -64,13 +66,15 @@ def get_answer(byte_string, filename):
 
 def check_answers(encrypt_answers, decrypt_answers):
     if len(TESTDATA) != len(encrypt_answers) or len(TESTDATA) != len(decrypt_answers):
-        return False
+        return 0
 
-    result = True
+    result = 0
     for i in range(len(TESTDATA)):
-        result = result \
-            and (TESTDATA[i][0] == get_answer(encrypt_answers[i], TESTDATA[i][2])) \
-            and (TESTDATA[i][0] == decrypt_answers[i])
+        try:
+            result += 1 if (TESTDATA[i][0] == get_answer(encrypt_answers[i], TESTDATA[i][2])) \
+                and (TESTDATA[i][0] == decrypt_answers[i]) else 0
+        except:
+            pass
     return result
 
 
@@ -94,7 +98,9 @@ with open(filename_public_key_2048, 'wb') as public_key_file, open(filename_priv
     public_key_file.write(key.public_key().export_key())
 
 student_code = PREFIX + '\n'
-student_code += """{{ STUDENT_ANSWER | e('py') }}"""
+student_code += """
+{{ STUDENT_ANSWER | e('py') }}
+"""
 student_code += POSTFIX
 
 output = ''
@@ -123,11 +129,13 @@ html = ''
 if output:
     html += f"<pre>{output}</pre>"
 
+right_answers = 0
 if not failed:
     with open(encrypt_filename, 'r') as encrypt_file, open(decrypt_filename, 'r') as decrypt_file:
-        failed = not check_answers(get_student_answers(encrypt_file.read()), get_student_answers(decrypt_file.read()))
-        if failed:
-            html += f"<p>Wrong answer</p>"
+        right_answers = check_answers(get_student_answers(encrypt_file.read()), get_student_answers(decrypt_file.read()))
+        failed = right_answers < len(TESTDATA)
+
+html += f"<p>Пройдено тестов: {right_answers}<br>Всего тестов: {len(TESTDATA)}</p>"
 
 print(json.dumps({
     'epiloguehtml': html,

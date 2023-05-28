@@ -1,10 +1,10 @@
 import json
 import subprocess
 import re
-from Crypto.Random import random
+import random
 
 
-SYMBOLS = [chr(num) for num in range(ord(' '), ord('~') + 1) if chr(num) != '\'' and chr(num) != '\\']
+SYMBOLS = [chr(num) for num in range(ord(' '), ord('~') + 1) if chr(num) not in ['\'', '\\']]
 
 
 def gcd(a, b):
@@ -22,34 +22,20 @@ def gcd(a, b):
 
 
 def generate_testdata():
-    PRIMES = [11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, \
-        89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, \
-        179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, \
-        269, 271, 277, 281, 283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, \
-        367, 373, 379, 383, 389, 397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, \
-        461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, \
-        571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631, 641, 643, 647, 653, 659, \
-        661, 673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743, 751, 757, 761, 769, \
-        773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863, 877, 881, \
-        883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997]
+    PRIMES = [17, 19, 23, 29, 31, 37, 41, 43, 47, 53, \
+              59, 61, 67, 71, 73, 79, 83, 89, 97, 101]
     while True:
         p = random.choice(PRIMES)
         q = random.choice(PRIMES)
         n = p * q
         phi = (p - 1) * (q - 1)
-        e = n // 2
-        while e < n:
-            if gcd(e, phi)[0] == 1:
-                break
-            e += 1
-            if e == n:
-                e = 1
+        e = 257
         d = 0
         while d == 0:
             t = gcd(e, phi)
             if (t[0] == 1):
                 d = t[1] % phi
-        yield(''.join([random.choice(SYMBOLS) for _ in range(100)]), e, d, n)
+        yield(''.join(random.choices(SYMBOLS, k=100)), e, d, n)
 
 
 generator = generate_testdata()
@@ -59,44 +45,94 @@ TESTDATA = [
     ('ANOTHER_TEST', 15, 47, 391),
     ('TEST', 1, 1, 391),
     generator.__next__(),
+    generator.__next__(),
+    generator.__next__(),
     (''.join(SYMBOLS), 15, 47, 391),
 ]
+ANSWERS = {
+    0: {'user_answer': [None, None], 'correct_answer': [[67, 69, 178, 67], 'TEST']},
+    1: {'user_answer': [None, None], 'correct_answer': [[], '']},
+    3: {'user_answer': [None, None], 'correct_answer': [[84, 69, 83, 84], 'TEST']}
+}
 
-filename = R'~\.result'
+encrypt_filename = R'~\.encrypt_result'
+decrypt_filename = R'~\.decrypt_result'
 encrypt_function_name = 'encrypt'
 decrypt_function_name = 'decrypt'
 
-PREFIX = """
-import json as __json__
-"""
-POSTFIX = "result = []\n" + ''.join([f"""
-ciphertext = {encrypt_function_name}('{DATA[0]}', {DATA[1]}, {DATA[3]})
-plaintext = {decrypt_function_name}(ciphertext, {DATA[2]}, {DATA[3]})
-result.append({"{'plaintext': plaintext, 'ciphertext': ciphertext}"})
-""" for DATA in TESTDATA]) + """
-print(__json__.dumps(result))
+PREFIX = ""
+POSTFIX = f"""
+def list_to_string(array, sep=','):
+    string = ''
+    for element in array:
+        string += str(element) + sep
+    return string[:-1]
+
+    
+TESTDATA = {TESTDATA}
+
+with open('{encrypt_filename}', 'w') as encrypt_file, open('{decrypt_filename}', 'w') as decrypt_file:
+    for DATA in TESTDATA:
+        ciphertext = {encrypt_function_name}(DATA[0], DATA[1], DATA[3])
+        if type(ciphertext) == list:
+            encrypt_file.write(list_to_string(ciphertext))
+            encrypt_file.write('\\n')
+        plaintext = {decrypt_function_name}(ciphertext, DATA[2], DATA[3])
+        if type(plaintext) == str:
+            decrypt_file.write(plaintext)
+            decrypt_file.write('\\n')
 """
 
-        
-def check_answer(answer, data):
-    if len(answer['plaintext']) != len(data[0]) or len(answer['ciphertext']) != len(data[0]):
+
+def get_student_encrypt_answers(file_string, sep=','):
+    array = file_string.split('\n')[:-1]
+    res = []
+    for string in array:
+        res.append(list(map(lambda elem: int(elem), string.split(sep) if len(string) > 0 else [])))
+    return res
+
+
+def get_student_decrypt_answers(file_string):
+    return file_string.split('\n')[:-1]
+
+
+def check_encrypt_answer(answer, data):
+    if len(answer) != len(data[0]):
         return False
     
     result = True
     for i in range(len(data[0])):
-        result = result \
-            and data[0][i] == answer['plaintext'][i] \
-            and ord(data[0][i]) ** data[1] % data[3] == answer['ciphertext'][i]
+        result = result and ord(data[0][i]) ** data[1] % data[3] == answer[i]
     return result
 
 
-def check_answers(answers):
-    if len(TESTDATA) != len(answers):
+def check_decrypt_answer(answer, data):
+    if len(answer) != len(data[0]):
         return False
+    return data[0] == answer
+
+
+def check_encrypt_answers(answers):
+    if len(TESTDATA) != len(answers):
+        return 0
     
-    result = True
+    result = 0
     for i in range(len(TESTDATA)):
-        result = result and check_answer(answers[i], TESTDATA[i])
+        if i in ANSWERS:
+            ANSWERS[i]['user_answer'][0] = answers[i]
+        result += 1 if check_encrypt_answer(answers[i], TESTDATA[i]) else 0
+    return result
+
+
+def check_decrypt_answers(answers):
+    if len(TESTDATA) != len(answers):
+        return 0
+    
+    result = 0
+    for i in range(len(TESTDATA)):
+        if i in ANSWERS:
+            ANSWERS[i]['user_answer'][1] = '\'' + answers[i] + '\''
+        result += 1 if check_decrypt_answer(answers[i], TESTDATA[i]) else 0
     return result
 
 
@@ -111,22 +147,23 @@ def tweak_line_numbers(error):
 
 
 student_code = PREFIX + '\n'
-student_answer = """{{ STUDENT_ANSWER | e('py') }}"""
+student_answer = """
+{{ STUDENT_ANSWER | e('py') }}
+"""
 student_code += student_answer
 student_code += POSTFIX
 
 output = ''
 failed = False
 try:
-    with open(filename, 'w') as file:
-        outcome = subprocess.run(
-            ['python3', '-c', student_code],
-            stdout=file,
-            stderr=subprocess.PIPE,
-            timeout=2,
-            universal_newlines=True,
-            check=True
-        )
+    outcome = subprocess.run(
+        ['python3', '-c', student_code],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=2,
+        universal_newlines=True,
+        check=True
+    )
 except subprocess.CalledProcessError as error:
     outcome = error
     output = "Task failed with return code = {}\n".format(outcome.returncode)
@@ -147,11 +184,52 @@ if re.search("Crypto", student_answer):
     failed = True
     html = "<p>Don't use PyCryptodome module</p>"
 
+right_answers = 0
 if not failed:
-    with open(filename, 'r') as file:
-        failed = not check_answers(json.loads(file.read()))
-        if failed:
-            html += f"<p>Wrong answer</p>"
+    with open(encrypt_filename, 'r') as encrypt_file, open(decrypt_filename, 'r') as decrypt_file:
+        right_answers = min(check_encrypt_answers(get_student_encrypt_answers(encrypt_file.read())),\
+                            check_decrypt_answers(get_student_decrypt_answers(decrypt_file.read())))
+        failed = right_answers < len(TESTDATA)
+
+html += f"""<div>
+<table border>
+    <thead>
+        <tr>
+            <th scope="col">
+                <div>
+                    <div>Входные данные</div>
+                </div>
+            </th>
+            <th scope="col">Правильное решение</th>
+            <th scope="col">Ваше решение</th>
+        </tr>
+    </thead>
+    <tbody>
+""" + '\n'.join([f"""
+    <tr>
+        <td>
+            <code style='color:black;'>{encrypt_function_name}('{TESTDATA[i][0]}', {TESTDATA[i][1]}, {TESTDATA[i][3]})</code>
+            <br>
+            <code style='color:black;'>{decrypt_function_name}({ANSWERS[i]['correct_answer'][0]}, {TESTDATA[i][2]}, {TESTDATA[i][3]})</code>
+        </td>
+        <td>
+            <code style='color:black;'>{ANSWERS[i]['correct_answer'][0]}</code>
+            <br>
+            <code style='color:black;'>'{ANSWERS[i]['correct_answer'][1]}'</code>
+        </td>
+        <td>
+            <code style='color:black;'>{ANSWERS[i]['user_answer'][0]}</code>
+            <br>
+            <code style='color:black;'>{ANSWERS[i]['user_answer'][1]}</code>
+        </td>
+    </tr>
+""" for i in ANSWERS]) + """
+    </tbody>
+</table>
+</div>
+<br>
+"""
+html += f"<p>Пройдено тестов: {right_answers}<br>Всего тестов: {len(TESTDATA)}</p>"
 
 print(json.dumps({
     'epiloguehtml': html,

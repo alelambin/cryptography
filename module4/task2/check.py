@@ -36,6 +36,11 @@ TESTDATA = [
     (random.randint(2, 10 ** 5), random.randint(2, 10 ** 10)),
     (random.randint(2, 10 ** 10), random.randint(2, 10 ** 10)),
 ]
+ANSWERS = {
+    0: {'user_answer': None, 'correct_answer': 19},
+    1: {'user_answer': None, 'correct_answer': 49},
+    5: {'user_answer': None, 'correct_answer': 0}
+}
 
 filename = R'~\.result'
 function_name = 'modular_multiplicative_inverse'
@@ -56,16 +61,17 @@ def get_student_answers(char_string):
 
 def check_answers(answers):
     if len(TESTDATA) != len(answers):
-        return False
+        return 0
     
-    result = True
+    result = 0
     for i in range(len(TESTDATA)):
+        if i in ANSWERS:
+            ANSWERS[i]['user_answer'] = answers[i]
         number = TESTDATA[i][0]
         module = TESTDATA[i][1]
-        result = result \
-            and answers[i].isnumeric() \
+        result += 1 if (answers[i].isnumeric() \
             and (gcd(number, module) != 1 and number * int(answers[i]) % module == 0 \
-            or number * int(answers[i]) % module == 1)
+            or number * int(answers[i]) % module == 1)) else 0
     return result
 
 
@@ -80,7 +86,9 @@ def tweak_line_numbers(error):
 
 
 student_code = PREFIX + '\n'
-student_code += """{{ STUDENT_ANSWER | e('py') }}"""
+student_code += """
+{{ STUDENT_ANSWER | e('py') }}
+"""
 student_code += POSTFIX
 
 output = ''
@@ -110,11 +118,39 @@ html = ''
 if output:
     html += f"<pre>{output}</pre>"
 
+right_answers = 0
 if not failed:
     with open(filename, 'r') as file:
-        failed = not check_answers(get_student_answers(file.read()))
-        if failed:
-            html += f"<p>Wrong answer</p>"
+        right_answers = check_answers(get_student_answers(file.read()))
+        failed = right_answers < len(TESTDATA)
+
+html += f"""<div>
+<table border>
+    <thead>
+        <tr>
+            <th scope="col">
+                <div>
+                    <div>Входные данные</div>
+                </div>
+            </th>
+            <th scope="col">Правильное решение</th>
+            <th scope="col">Ваше решение</th>
+        </tr>
+    </thead>
+    <tbody>
+""" + '\n'.join([f"""
+    <tr>
+        <td><code style='color:black;'>{function_name}({TESTDATA[i][0]}, {TESTDATA[i][1]})</code></td>
+        <td><code style='color:black;'>{ANSWERS[i]['correct_answer']}</code></td>
+        <td><code style='color:black;'>{ANSWERS[i]['user_answer']}</code></td>
+    </tr>
+""" for i in ANSWERS]) + """
+    </tbody>
+</table>
+</div>
+<br>
+"""
+html += f"<p>Пройдено тестов: {right_answers}<br>Всего тестов: {len(TESTDATA)}</p>"
 
 print(json.dumps({
     'epiloguehtml': html,
